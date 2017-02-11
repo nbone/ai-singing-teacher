@@ -1,0 +1,438 @@
+<html>
+<head>
+<!--
+Voice Labeler
+Copyright 2014 by Nicholas Bone
+Enables human experts to label the sound samples I need for my MS research.
+-->
+	<title>Voice Labeler 1.0.2</title>
+	
+	<link href="css/jquery-ui-1.10.4.custom.min.css" rel="stylesheet">
+	<link href="css/voiceLabeler.css" rel="stylesheet">
+
+	<script src="js/jquery-1.10.2.js"></script>
+	<script src="js/jquery-ui-1.10.4.custom.min.js"></script>
+	<script src="js/mylawnchair.js"></script>
+	<script src="js/myProgressBar.js"></script>
+
+	<script src="js/files_v1.js"></script>
+	<script src="js/files_v2.js"></script>
+	<script src="js/files_v3.js"></script>
+	<script src="js/files_v4.js"></script>
+	<script src="js/files_bp1.js"></script>
+	<script src="js/files_bp2.js"></script>
+	<script src="js/files_bp3.js"></script>
+	<script src="js/files_bp4.js"></script>
+	
+	<script type="text/javascript">
+$(function() {
+	// file lists (imported from external scripts)
+	var fileLists = [];
+	fileLists['v1'] = fileList_v1;
+	fileLists['v2'] = fileList_v2;
+	fileLists['v3'] = fileList_v3;
+	fileLists['v4'] = fileList_v4;
+	fileLists['bp1'] = fileList_bp1;
+	fileLists['bp2'] = fileList_bp2;
+	fileLists['bp3'] = fileList_bp3;
+	fileLists['bp4'] = fileList_bp4;
+	
+	// audio data
+	var audio = new Audio();
+	var filePrefix = 'audio/';
+	var fileSuffix = '.mp3';
+	var currentFile;
+	
+	// database
+	var metaData = new Lawnchair(
+		{ name:'meta', adapters:['dom','webkit-sqlite','window-name'] },
+		function(){});
+	
+	// init progress indicators and data for each of the 8 file groups
+	var ratingsGroups = {};
+	var activeRatings;
+	$('#progress .pb').each(function() {
+		// initialize FileRatings data store and progress bar
+		var pb = $(this);
+		var index = pb.data('index');
+		ratingsGroups[index] = new FileRatings(fileLists[index], pb, metaData, index);
+	}).click(function() {
+		var pb = $(this);
+		var index = pb.data('index');
+		var ratingsType = pb.data('type');
+		
+		// make THIS the sole "active" one
+		$('#progress .pb').removeClass('active');
+		pb.addClass('active');
+		
+		// set global activeRatings to this group, and remember this in the database
+		activeRatings = ratingsGroups[index];
+		activeGroupRecord.index = index;
+		metaData.save(activeGroupRecord);
+		
+		// show either the vowel UI or the breathy-pressed UI depending on the group
+		$('#vowelButtons').toggle(ratingsType == 'vowels');
+		$('#flowSliders').toggle(ratingsType == 'breathy-pressed');
+		
+		// play the current file from this group
+		loadAndPlayFile(activeRatings.getCurrentFile());
+	});
+	
+	// has the user made unsaved changes?
+	var isFormDirty = false;
+	
+	// buttons
+	var prevButton = $('#prev').button()
+		.click(function() {
+			if (!isFormDirty || confirm('You have not saved your rating for this clip (done with the "Save & Continue" button).\n\nDo you want to abandon this and load the previous clip instead?')) {
+				loadAndPlayFile(activeRatings.getPrevFile());
+			}
+	});
+	var nextButton = $('#next').button()
+		.click(function() {
+			if (!isFormDirty || confirm('You have not saved your rating for this clip (done with the "Save & Continue" button).\n\nDo you want to abandon this and load the next clip instead?')) {
+				loadAndPlayFile(activeRatings.getNextFile());
+			}
+	});
+	var skipButton = $('#skip').button()
+		.click(function() {
+			if (!isFormDirty || confirm('You have not saved your rating for this clip (done with the "Save & Continue" button).\n\nDo you want to abandon this and load the next unrated clip instead?')) {
+				playNextClip();
+			}
+	});
+	var replayButton = $('#replay').button()
+		.click(function() {
+			audio.play();
+	});
+	var saveButton = $('#save').button({disabled: true})
+		.click(function() {
+			var data = getFormData();
+			console.log(data);
+			activeRatings.save(data);
+			playNextClip();
+	});
+	var showDataButton = $('#showData').button()
+		.click(function() {
+			dataTextBox.val('');
+			var ratingsData = activeRatings.getAllRatings();
+			dataTextBox.val(ratingsData);
+			ratingsDialog.dialog('open');
+	});
+	var aboutButton = $('#about').button()
+		.click(function() {
+			aboutDialog.dialog('open');
+	});
+	
+	// data popup, for sending me the results
+	var dataTextBox = $('#ratings-dialog textarea');
+	var ratingsDialog = $('#ratings-dialog').dialog({
+		autoOpen: false,
+		modal: true,
+		width: 400,
+		show: 'clip',
+		focus: function( event, ui ) {
+			dataTextBox.select();
+		},
+		buttons: [
+			{
+				text: 'Delete',
+				click: function() {
+					deleteDialog.dialog('open');
+				}
+			},
+			{
+				text: 'Close',
+				click: function() {
+					$(this).dialog('close');
+				}
+			}
+		]
+	});
+	var deleteDialog = $('#delete-dialog').dialog({
+		autoOpen: false,
+		modal: true,
+		width: 400,
+		show: 'highlight',
+		buttons: [
+			{
+				text: 'Yes, Delete!',
+				click: function() {
+					activeRatings.nuke();
+					$('textarea', ratingsDialog).val('');
+					$(this).dialog('close');
+				}
+			},
+			{
+				text: 'Noooooooo!',
+				click: function() {
+					$(this).dialog('close');
+				}
+			}
+		]
+	});
+	
+	// about dialog
+	var aboutDialog = $('#about-dialog').dialog({
+		autoOpen: false,
+		modal: true,
+		width: 640,
+		show: 'slide',
+		buttons: [
+			{
+				text: 'Close',
+				click: function() {
+					$(this).dialog('close');
+				}
+			}
+		]
+	});
+	
+	// group complete dialog
+	var groupCompleteDialog = $('#group-complete-dialog').dialog({
+		autoOpen: false,
+		modal: true,
+		width: 400,
+		show: 'highlight',
+		hide: 'explode',
+		buttons: [
+			{
+				text: 'You\'re Welcome!',
+				click: function() {
+					$(this).dialog('close');
+				}
+			}
+		]
+	});
+
+	// form elements
+	var vowelButtons = $('#vowelButtons').buttonset()
+		.find('input[type=radio]')
+		.change(function() {
+			enableSave();
+	});
+	var sliders = $('#flowSliders .slider').slider({
+		orientation: 'vertical',
+		animate: 'fast',
+		max: 20,
+		min: 0,
+		range: 'min',
+		change: function( event, ui ) {
+			// save value in hidden input
+			var input = $('input', event.target);
+			input.val(ui.value);
+			// mark BOTH sliders as "set"
+			$('#flowSliders .slider').addClass('set');
+			enableSave();
+		}
+	});
+	
+	// returns a concise representation of the form data for this clip
+	getFormData = function() {
+		var formData = { };
+		var result = { key : currentFile };
+		
+		$.each($('form').serializeArray(), function() {
+			formData[this.name] = this.value;
+		});
+		
+		if (formData['vowel']) {
+			result.v = formData['vowel'];
+		}
+		if (formData['breathy'] != -1 || formData['pressed'] != -1) {
+			result.b = parseInt(formData['breathy']);
+			result.p = parseInt(formData['pressed']);
+		}
+		
+		return result;
+	};
+	
+	// enables the save button
+	enableSave = function() {
+		saveButton.button({disabled: false});
+		isFormDirty = true;
+	};
+	
+	// advances to the next audio clip
+	playNextClip = function() {
+		currentFile = activeRatings.getNextUnratedFile();
+
+		if (!currentFile) {
+			groupCompleteDialog.dialog('open');
+			return false;
+		}
+
+		loadAndPlayFile(currentFile);
+	};
+
+	// resets the form
+	resetForm = function() {
+		vowelButtons.each(function() {
+			this.checked = false;
+		}).button('refresh');
+
+		sliders.slider('value', 0)
+			.removeClass('set')
+			.find('input')
+			.val(-1);
+	};
+
+	// load and play the current audio clip
+	loadAndPlayFile = function(fileData) {
+		resetForm();
+
+		//console.log(fileData);
+		currentFile = fileData.key;
+		audio.src = filePrefix + currentFile + fileSuffix;
+		audio.play();
+
+		if (fileData.v) {
+			$('#vr-' + fileData.v)
+				.prop('checked', true)
+				.button('refresh');
+		}
+
+		if (fileData.b !== undefined && fileData.b >= 0) {
+			$('#breathy-slider').slider('value', fileData.b);
+		}
+
+		if (fileData.p !== undefined && fileData.p >= 0) {
+			$('#pressed-slider').slider('value', fileData.p);
+		}
+
+		saveButton.button({disabled: true});
+		isFormDirty = false;
+	};
+
+	/*** Stuff below here is page-load init actions ***/
+	
+	// load current active group from db, if any, defaulting to the first
+	var activeGroupRecord = { key: 'activeGroup' };
+	metaData.exists(activeGroupRecord.key, function(exists) {
+		if (exists) {
+			metaData.get(activeGroupRecord.key, function(obj) {
+				activeGroupRecord = obj;
+			});
+		} else {
+			activeGroupRecord.index = 'v1';
+			metaData.save(activeGroupRecord);
+		}
+	});
+	activeRatings = ratingsGroups[activeGroupRecord.index];
+	
+	// auto-play and init form on page load
+	ratingsGroups[activeGroupRecord.index].getJQElement().click();
+	
+	// hide the error block and show the real page
+	$('#hideme').hide();
+	$('#showme').show();
+});
+	</script>
+</head>
+<body>
+<div id="hideme">
+	<noscript>
+	<h1>This app requires javascript.</h1>
+	<p>Please enable javascript in your browser and try again.</p>
+	</noscript>
+	<script type="text/javascript">
+	document.write('<h1>Some resources failed to load</h1><p>I\'m very sorry, but I couldn\'t find all the scripts I need to run this app.</p><p>Perhaps you\'re trying to run this directly from the zip file? (that won\'t work)</p><p>Please unzip the entire archive to a new directory and then try loading this app.</p><p>If you keep getting this error please contact Nic Bone.</p>');
+	</script>
+</div>
+<div id="showme" class="top-container" style="display: none;">
+	<div id="progress">
+		<div id="pb-v1" class="pb pb-v" data-index="v1" data-type="vowels" title="Vowels Group 1"></div>
+		<div id="pb-bp1" class="pb pb-bp" data-index="bp1" data-type="breathy-pressed" title="Breathy-Pressed Group 1"></div>
+		<div id="pb-v2" class="pb pb-v" data-index="v2" data-type="vowels" title="Vowels Group 2"></div>
+		<div id="pb-bp2" class="pb pb-bp" data-index="bp2" data-type="breathy-pressed" title="Breathy-Pressed Group 2"></div>
+		<div id="pb-v3" class="pb pb-v" data-index="v3" data-type="vowels" title="Vowels Group 3"></div>
+		<div id="pb-bp3" class="pb pb-bp" data-index="bp3" data-type="breathy-pressed" title="Breathy-Pressed Group 3"></div>
+		<div id="pb-v4" class="pb pb-v" data-index="v4" data-type="vowels" title="Vowels Group 4"></div>
+		<div id="pb-bp4" class="pb pb-bp" data-index="bp4" data-type="breathy-pressed" title="Breathy-Pressed Group 4"></div>
+	</div>
+	<div id="buttons">
+		<button id="prev" title="Play previous clip"><img src="images/prev.png" /></button>
+		<button id="next" title="Play next clip"><img src="images/next.png" /></button>
+		<button id="skip" title="Play next unrated clip"><img src="images/skip.png" /></button>
+		<button id="replay" title="Replay current clip"><img src="images/play.png" /></button>
+		<button id="save" title="Save your rating for this clip" disabled>Save & Continue</button>
+		<button id="showData" title="Display your ratings so you can submit them">Data</button>
+		<button id="about" title="About this app">Instructions</button>
+	</div>
+	<div id="group-complete-dialog" title="Group Complete!"><input type="hidden" autofocus />
+		<p>Yay!  You rated all the samples in this group!</p>
+		<p>Feel free to loop through them to double-check your ratings (using the <img src="images/prev.png" height="17" /> and <img src="images/next.png" height="17" /> buttons), or click the <b>Data</b> button to show your ratings so that you can email them to me.</p>
+		<p>Thank you!</p>
+	</div>
+	<div id="ratings-dialog" title="Your Ratings Data"><input type="hidden" autofocus />
+		<p>Please copy/paste/send the data below to <a href="mailto:n2bone@gmail.com?subject=Voice Labeler Ratings Data">n2bone@gmail.com</a>.</p>
+		<textarea disabled></textarea>
+	</div>
+	<div id="delete-dialog" title="Confirm Delete?"><input type="hidden" autofocus />
+		This will delete ALL the ratings you've entered for the current group.
+		Deleting the data cannot be undone.
+		Delete only if you want to start over completely, or have already emailed your ratings data for this group.
+	</div>
+	<div id="about-dialog" title="Voice Labeler v 1.0.2"><input type="hidden" autofocus />
+		<p>Thank you for helping me!</p>
+		<p>This Voice Labeler app is a tool to help you (the <i>human expert</i>) to help me with my Masters research by assigning vowel labels or breathy-pressed ratings to half-second-long sound clips.  The clips were extracted from recordings of Italian song and scales sung by ten different singers.  I will use these sound clips along with <b>your ratings</b> to train a computer program to correctly discriminate vowels and breathy or pressed phonation.  I am collecting ratings from multiple experts to increase validity of the ratings and to distinguish "easy" (experts agree) from "hard" (experts disagree).</p>
+		<p>There are eight groups of sound clips&mdash;the four on the left are for vowel ratings, and the four on the right are for breathy-pressed ratings.  If you don't have time to do all the ratings, I'd prefer that you do most or all of a few groups rather than less than half of many groups.  When you are done with a group (even if you haven't rated all the clips) click the <b>Data</b> button to show your ratings data for that group, then paste it in an email to me.  (It's OK to send me the same data more than once if you decide to add or change some ratings).</p>
+		<p><b>For the vowel ratings</b> some of the clips will not sound like a pure Italian vowel.  If it's "close enough" then choose the nearest match, otherwise select the non-vowel button in the middle.</p>
+		<p><b>For the breathy-pressed ratings</b> please rate <i>both</i> dimensions independently.  Often <i>breathy</i> and <i>pressed</i> are mutually exclusive, but feel free to give both positive ratings if that's what you hear.</p>
+		<p><b>Note:</b> This app saves your rating data in the browser's local storage, so if you close this page and come back later your data will still be here.  But if you  clear your browsing data (in the browser's tools or settings menu) it will probably delete your ratings too.  Also, if you switch computers or switch to a different browser your ratings data will not follow you.</p>
+		<p>Thanks again, and don't hesitate to contact me with questions!</p>
+		<address>&copy; 2014 <a href="mailto:n2bone@gmail.com">Nicholas Bone</a></address>
+	</div>
+	<form>
+		<fieldset id="vowelButtons">
+			<input type="radio" name="vowel" value="xx" id="vr-xx"><label id="vl-xx" for="vr-xx" class="err"
+title="Choose this if it's a diphthong, doesn't sound
+like a vowel at all, or sounds much more like a
+non-Italian vowel such as /&#x26A;/ or /&#x28A;/
+than one of the seven choices here.">none<br />mixed<br />unclear</label>
+			<input type="radio" name="vowel" value="iy" id="vr-iy"><label id="vl-iy" for="vr-iy" class="ipa">i</label>
+			<input type="radio" name="vowel" value="ey" id="vr-ey"><label id="vl-ey" for="vr-ey" class="ipa">e</label>
+			<input type="radio" name="vowel" value="eh" id="vr-eh"><label id="vl-eh" for="vr-eh" class="ipa">&#x025B;</label>
+			<input type="radio" name="vowel" value="aa" id="vr-aa"><label id="vl-aa" for="vr-aa" class="ipa">a</label>
+			<input type="radio" name="vowel" value="ao" id="vr-ao"><label id="vl-ao" for="vr-ao" class="ipa">&#x0254;</label>
+			<input type="radio" name="vowel" value="ow" id="vr-ow"><label id="vl-ow" for="vr-ow" class="ipa">o</label>
+			<input type="radio" name="vowel" value="uw" id="vr-uw"><label id="vl-uw" for="vr-uw" class="ipa">u</label>
+		</fieldset>
+		<fieldset id="flowSliders">
+			<table>
+				<tr>
+					<td>
+						<label>Breathy</label>
+					</td>
+					<td>
+						<label>Pressed</label>
+					</td>
+				</tr>
+				<tr>
+					<td
+title="Please rate how breathy this clip sounds.
+The top of this scale is as breathy as you've ever heard.
+The bottom of this scale is perfect flow.">
+						<div id="breathy-slider" class="slider">
+							<input type="hidden" name="breathy" value="-1" />
+						</div>
+					</td>
+					<td
+title="Please rate how pressed this clip sounds.
+The top of this scale is as pressed as you've ever heard.
+The bottom of this scale is perfect flow.">
+						<div id="pressed-slider" class="slider">
+							<input type="hidden" name="pressed" value="-1" />
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<label>Flow</label>
+					</td>
+				</tr>
+			</table>
+		</fieldset>
+	</form>
+</div>
+</body>
+</html>

@@ -1,0 +1,227 @@
+body {
+	background-color: #125;
+	color: #eee;
+	font-family: Segoe UI, Arial, sans-serif;
+}
+.top-container {
+	position: relative;
+	width: 644px;
+	margin: 5px;
+	border: 2px solid #246;
+}
+.ipa {
+	font-family: Doulos SIL, Aborigonal Serif, Arial Unicode MS;
+	font-weight: normal;
+}
+.ui-button.ipa {
+	width: 80px;
+	height: 80px;
+	border-radius: 40px;
+	margin: 0;
+}
+.ui-button.ipa .ui-button-text {
+	font-size: 48px;
+	line-height: 80px;
+	margin: 0;
+	padding: 0;
+	position: relative;
+	top: -5px;
+}
+.ui-button.err {
+	width: 100px;
+	height: 100px;
+	border-radius: 20px;
+	margin: 0;
+}
+.ui-button.err .ui-button-text {
+	font-size: 22px;
+	margin: 0;
+	padding: 0;
+}
+.ui-widget,
+.ui-widget-header,
+.ui-state-default,
+.ui-widget-content .ui-state-default {
+	background-image: none !important;
+	background-color: #222111;
+	border-color: #444;
+}
+.ui-widget.ui-state-hover,
+.ui-widget-content .ui-state-hover,
+.ui-widget-content .ui-state-focus,
+.ui-slider:hover {
+	background-color: #363;
+	border-color: #393;
+}
+.ui-widget.ui-state-active,
+.slider.set .ui-slider-handle,
+.slider.set .ui-slider-range {
+	background-color: #e80;
+	border-color: #c63;
+}
+.ui-dialog.ui-widget,
+.ui-dialog .ui-widget-header {
+	background-color: #000;
+}
+.ui-progressbar .ui-progressbar-value {
+	background-color: #f58400;
+}
+.ui-dialog-content {
+	text-align: justify;
+	color: #ddd;
+	font-size: 17px;
+}
+#buttons {
+	padding: 10px 15px;
+	border: solid #246;
+	border-width: 2px 0;
+}
+#buttons .ui-button {
+	margin: 2px;
+}
+#buttons .ui-button .ui-button-text {
+	padding: 3px 12px;
+	line-height: 30px;
+}
+#buttons .ui-button .ui-button-text img {
+	margin: 0 -6px;
+	height: 30px;
+}
+#progress {
+	width: 625px;
+	padding: 10px
+}
+#progress .pb {
+	width: 300px;
+	margin: 5px;
+	display: inline-block;
+	opacity: 0.5;
+}
+#progress .pb label {
+	color: #789;
+	font-weight: bold;
+	font-size: 12px;
+	display: none;
+}
+#progress .pb .ui-progressbar {
+	height: 20px;
+}
+#progress .pb .caption {
+	font-size: 11px;
+	color: #789;
+	text-align: right;
+}
+#progress .pb .caption span {
+	margin: 0 4px;
+}
+#progress .pb .caption span.saved {
+	float: left;
+}
+#progress .pb .caption span.skipped {
+	display: none;
+}
+#progress .pb.active,
+#progress .pb:hover {
+	opacity: 1.0;
+}
+#progress .pb.active .caption,
+#progress .pb.active label {
+	color: #def;
+}
+#progress .pb:hover .ui-progressbar {
+	border-color: #393;
+}
+#progress .pb.active .ui-progressbar {
+	border-color: #963;
+}
+form {
+	margin: 0;
+}
+form fieldset {
+	position: relative;
+	height: 337px;
+	padding: 10px;
+	border: 0;
+}
+#vowelButtons {
+	width: 422px;
+	margin-left: 100px;
+}
+#vowelButtons #vl-xx {
+	position: absolute;
+	top: 40px;
+	left: 180px;
+}
+#vowelButtons #vl-iy {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+}
+#vowelButtons #vl-ey {
+	position: absolute;
+	top: 95px;
+	left: 60px;
+}
+#vowelButtons #vl-eh {
+	position: absolute;
+	top: 180px;
+	left: 110px;
+}
+#vowelButtons #vl-aa {
+	position: absolute;
+	top: 265px;
+	left: 160px;
+}
+#vowelButtons #vl-ao {
+	position: absolute;
+	top: 200px;
+	left: 300px;
+}
+#vowelButtons #vl-ow {
+	position: absolute;
+	top: 105px;
+	left: 315px;
+}
+#vowelButtons #vl-uw {
+	position: absolute;
+	top: 10px;
+	left: 330px;
+}
+#flowSliders {
+	margin-left: 200px;
+}
+#flowSliders .slider {
+	height: 200px;
+	display: inline-block;
+}
+#flowSliders .slider .ui-slider-handle {
+	visibility: hidden;
+}
+#flowSliders .slider.set .ui-slider-handle {
+	visibility: visible;
+}
+#flowSliders table td {
+	text-align: center;
+	padding: 5px;
+}
+#flowSliders label {
+	font-size: 22px;
+	font-weight: bold;
+}
+#ratings-dialog {
+	padding: 0;
+}
+#ratings-dialog p {
+	margin: 20px;
+}
+#ratings-dialog textarea {
+	width: 100%;
+	height: 200px;
+	resize: none;
+	margin: 0;
+	overflow: auto;
+	background: #000;
+	color: #eee;
+	font-size: 12px;
+	font-family: monospace;
+}
